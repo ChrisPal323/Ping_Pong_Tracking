@@ -1,8 +1,5 @@
 import numpy as np
 import cv2
-import ball_tracking as bt
-import time
-import os
 
 '''
 Calibrate the ping pong table, find the corners and use background subtraction
@@ -21,12 +18,19 @@ class CoordinateStore:
 
 # CAMERA PATHS
 cam1_path = 0
-cam2_path = 1
+cam2_path = 2
+
+# Shooting resolution
+res = [1280, 720]
 
 # grab frame (Cam1)
 cap1 = cv2.VideoCapture(cam1_path)
+cap1.set(3, res[0])
+cap1.set(4, res[1])
+
 ret1, frame = cap1.read()
 h1, w1, c1 = frame.shape
+print(frame.shape)
 
 # Use da class
 coordinateStore = CoordinateStore()
@@ -39,10 +43,12 @@ cv2.setMouseCallback('Calibrate Table', coordinateStore.select_point)
 while True:
     cv2.imshow('Calibrate Table', frame)
 
-    # Next Camera if ESC is pressed
+    # Next Camera if Enter is pressed
     k = cv2.waitKey(20) & 0xFF
-    if k == 27:
+    if k == 13:
         break
+    if k == 27:
+        raise Exception("Escaped Loop")
 
 # Close frames and express data
 cv2.destroyAllWindows()
@@ -54,6 +60,9 @@ cap1.release()
 
 # grab frame (Cam2)
 cap2 = cv2.VideoCapture(cam2_path)
+cap2.set(3, res[0])
+cap2.set(4, res[1])
+
 ret2, frame = cap2.read()
 h2, w2, c2 = frame.shape
 
@@ -68,10 +77,12 @@ cv2.setMouseCallback('Calibrate Table', coordinateStore.select_point)
 while True:
     cv2.imshow('Calibrate Table', frame)
 
-    # End if ESC is pressed
+    # End if Enter is pressed
     k = cv2.waitKey(20) & 0xFF
-    if k == 27:
+    if k == 13:
         break
+    if k == 27:
+        raise Exception("Escaped Loop")
 
 # Close frames and express data
 cv2.destroyAllWindows()

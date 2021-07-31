@@ -2,11 +2,11 @@ import math
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
+from collections import deque
 from scipy.linalg import qr, svd
-from scipy.signal import argrelextrema
+import cv2
+import random
 import matplotlib.animation as animation
-import matplotlib.cm as cm
-from scipy.ndimage.filters import gaussian_filter
 import ball_tracking as bt
 
 xtable = 2.74
@@ -56,7 +56,7 @@ class Analyzer:
     """
 
     # Initiate and calculate cameras, etc.
-    def __init__(self, cam1, cam2, corners1, corners2):
+    def __init__(self, cam1, cam2, resolution, corners1, corners2):
 
         # 3D points of ball
         pts_len = 16
@@ -66,10 +66,14 @@ class Analyzer:
         self.cam1 = cam1
         self.cam2 = cam2
 
-        self.h1 = cam1.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float `height`
-        self.w1 = cam1.get(cv2.CAP_PROP_FRAME_WIDTH)  # float `width`
-        self.h2 = cam2.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float `height`
-        self.w2 = cam2.get(cv2.CAP_PROP_FRAME_WIDTH)  # float `width`
+        # Set Resolution for cameras
+        cam1.set(3, resolution[0])
+        cam1.set(4, resolution[1])
+        cam2.set(3, resolution[0])
+        cam2.set(4, resolution[1])
+
+        self.height = resolution[0]
+        self.width = resolution[1]
 
         # Points in cornersX should correspond: p1-p3, p2-p4, p3-p1, p4-p2
         self.pc1 = np.copy(corners1)
@@ -147,25 +151,12 @@ class Analyzer:
         ax.set_zlim(-1, 3)
         plt.show()
 
-    # plot ze table in axis
-    def plot_table(self, axis):
-        x = [0, 0, 2.74, 2.74, 0, 1.37, 1.37, 1.37, 1.37, 1.37, 1.37]
-        y = [0, 1.525, 1.525, 0, 0, 0, -0.1525, -0.1525, 1.525 + 0.1525, 1.525 + 0.1525, -0.1525]
-        z = [0, 0, 0, 0, 0, 0, 0, 0.1525, 0.1525, 0, 0]
-
-        axis.set_xlim(-1, 4)
-        axis.set_ylim(-2, 3)
-        axis.set_zlim(-1, 3)
-
-        # Plot stuff
-        axis.plot(x, y, z, 'b', linewidth=2)
 
     # Live generation
-    def animate_3d_live(self):
+    def animate_3d_live(self, interval):
 
         # Config the plot
         fig = plt.figure()
-
         ax = Axes3D(fig)
 
         # Set up stuff for drawing camera
@@ -176,9 +167,24 @@ class Analyzer:
 
         # Draw the cameras
         ax.scatter(pos1[0], pos1[1], pos1[2], c='k')
+        print(pos1[0], pos1[1], pos1[2])
         ax.scatter(pos2[0], pos2[1], pos2[2], c='k')
         ax.quiver(pos1[0], pos1[1], pos1[2], dir1[0], dir1[1], dir1[2], length=1, normalize=True)
         ax.quiver(pos2[0], pos2[1], pos2[2], dir2[0], dir2[1], dir2[2], length=1, normalize=True)
+
+        # Set Scales
+        ax.set_xlim(-1, 4)
+        ax.set_ylim(-2, 3)
+        ax.set_zlim(-1, 3)
+
+        def plot_table(ax):
+            # Ping Pong Table Coords
+            x = [0, 0, 2.74, 2.74, 0, 1.37, 1.37, 1.37, 1.37, 1.37, 1.37]
+            y = [0, 1.525, 1.525, 0, 0, 0, -0.1525, -0.1525, 1.525 + 0.1525, 1.525 + 0.1525, -0.1525]
+            z = [0, 0, 0, 0, 0, 0, 0, 0.1525, 0.1525, 0, 0]
+
+            # Plot Table
+            ax.plot(x, y, z, 'b', linewidth=2)
 
         def grab_frames():
             ret1, frame1 = self.cam1.read()
@@ -188,8 +194,8 @@ class Analyzer:
                 return frame1, frame2
 
         def find_ball(frame1, frame2):
-            ball_pos1 = bt.find_ball(frame1, self.h1, self.h1)
-            ball_pos2 = bt.find_ball(frame2, self.h2, self.h2)
+            ball_pos1 = bt.find_ball(frame1, 1)
+            ball_pos2 = bt.find_ball(frame2, 2)
 
             return ball_pos1, ball_pos2
 
@@ -238,15 +244,19 @@ class Analyzer:
             self.p3d.append(ball_3d_pos)
 
             # Tweak data and remove outliers
-            remove_point_outliers()
+            #remove_point_outliers()
 
             # Update graphically
-            ax.clear()  # Because yes
-            ax.scatter([p3d[i, 0] for i in range(p3d.shape[0])], [sc[i, 1] for i in range(p3d.shape[0])], [p3d[i, 2] for i in range(p3d.shape[0])])
-            plot_table()
+            ax.clear()  # Because resetting the graph removes old balls
+            plot_table(ax)
+
+            # Add all points
+            for i in range(len(self.p3d)):
+                curPoint = self.p3d[i - 1]
+                ax.scatter(curPoint[0], curPoint[1], curPoint[2])
 
         # Starts cam / tracking / animation loop based on interval!
-        anim = animation.FuncAnimation(fig, update_points, interval=1000)
+        anim = animation.FuncAnimation(fig, update_points, interval=interval)
         plt.show()
 
 

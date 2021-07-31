@@ -1,13 +1,17 @@
 import cv2
 cv2.setUseOptimized(True)
 import numpy as np
-import time
+
 
 '''
 Functions for ball detection in each frame of a video
 '''
 
-test = False    # Used to test functions for improvement :)
+# Test Mode
+test = True
+
+# Test viewing Res
+viewRes = (427, 240)
 
 # create subtracter
 fgbg = cv2.createBackgroundSubtractorMOG2(history=15, varThreshold=50, detectShadows=False)
@@ -38,23 +42,25 @@ detector = cv2.SimpleBlobDetector_create(params)
 
 
 # Finds ball position in orig
-def find_ball(frame, height, width):
-
-    '''
+def find_ball(frame, camNum):
+    """
     :param frame:
-    :param height:
-    :param width:
+    :param camNum:
     :return: pos:       2D position of detected ball ([0,0] if none detected)
-    '''
+    """
+
+    # Grab shape
+    height, width, _ = frame.shape
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    # t1 = time.time()
     gray[cv2.medianBlur(fgbg.apply(frame), ksize=5) == 0] = 0
-    # t2 = time.time()
     keypoints = detector.detect(gray)
-    # t3 = time.time()
-    # print('fgbg:'+str(t2-t1))
-    # print('detector:'+str(t3-t2))
+
+    if test:
+        im_with_keypoints = cv2.drawKeypoints(gray, keypoints, np.array([]),
+                                              (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        im_with_keypoints = cv2.resize(im_with_keypoints, viewRes, interpolation=cv2.INTER_AREA)
+
     col = 0
     row = 0
     if len(keypoints) > 0:
@@ -64,7 +70,7 @@ def find_ball(frame, height, width):
         for i in range(len(keypoints)):
             x = int(keypoints[i].pt[0])
             y = int(keypoints[i].pt[1])
-            val = np.sum(gray[max([y-3,0]):min([y+3,height-1]),max([x-3,0]):min([x+3,width-1])])
+            val = np.sum(gray[max([y - 3, 0]):min([y + 3, height - 1]), max([x - 3, 0]):min([x + 3, width - 1])])
 
             if val > maxval:
                 col = x
@@ -72,4 +78,10 @@ def find_ball(frame, height, width):
                 maxval = val
 
     pos = np.array([col, row, 1])  # Return the 1 for  calculating 3D pos
+    if test:
+        framecopy = np.copy(frame)
+        framecopy = cv2.resize(framecopy, viewRes, interpolation=cv2.INTER_AREA)
+        cv2.circle(framecopy, (col, row), 10, color=(0, 255, 0), thickness=4)
+        imageStack = cv2.hconcat([framecopy, im_with_keypoints])
+        cv2.imshow(f"Final Detections / Keypoints - {camNum}", imageStack)
     return pos

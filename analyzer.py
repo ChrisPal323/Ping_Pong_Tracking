@@ -159,19 +159,6 @@ class Analyzer:
         fig = plt.figure()
         ax = Axes3D(fig)
 
-        # Set up stuff for drawing camera
-        pos1 = -np.matmul(np.linalg.inv(self.A1[0:3, 0:3]), self.A1[:, 3])
-        pos2 = -np.matmul(np.linalg.inv(self.A2[0:3, 0:3]), self.A2[:, 3])
-        dir1 = self.A1[2, :]
-        dir2 = self.A2[2, :]
-
-        # Draw the cameras
-        ax.scatter(pos1[0], pos1[1], pos1[2], c='k')
-        print(pos1[0], pos1[1], pos1[2])
-        ax.scatter(pos2[0], pos2[1], pos2[2], c='k')
-        ax.quiver(pos1[0], pos1[1], pos1[2], dir1[0], dir1[1], dir1[2], length=1, normalize=True)
-        ax.quiver(pos2[0], pos2[1], pos2[2], dir2[0], dir2[1], dir2[2], length=1, normalize=True)
-
         # Set Scales
         ax.set_xlim(-1, 4)
         ax.set_ylim(-2, 3)
@@ -185,6 +172,20 @@ class Analyzer:
 
             # Plot Table
             ax.plot(x, y, z, 'b', linewidth=2)
+
+        def plot_cameras(ax):
+            # Set up stuff for drawing camera
+            pos1 = -np.matmul(np.linalg.inv(self.A1[0:3, 0:3]), self.A1[:, 3])
+            pos2 = -np.matmul(np.linalg.inv(self.A2[0:3, 0:3]), self.A2[:, 3])
+            dir1 = self.A1[2, :]
+            dir2 = self.A2[2, :]
+
+            # Draw the cameras
+            ax.scatter(pos1[0], pos1[1], pos1[2], c='k')
+            print(pos1[0], pos1[1], pos1[2])
+            ax.scatter(pos2[0], pos2[1], pos2[2], c='k')
+            ax.quiver(pos1[0], pos1[1], pos1[2], dir1[0], dir1[1], dir1[2], length=1, normalize=True)
+            ax.quiver(pos2[0], pos2[1], pos2[2], dir2[0], dir2[1], dir2[2], length=1, normalize=True)
 
         def grab_frames():
             ret1, frame1 = self.cam1.read()
@@ -249,6 +250,7 @@ class Analyzer:
             # Update graphically
             ax.clear()  # Because resetting the graph removes old balls
             plot_table(ax)
+            plot_cameras(ax)
 
             # Add all points
             for i in range(len(self.p3d)):

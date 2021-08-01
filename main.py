@@ -16,8 +16,6 @@ res = [1280, 720]
 # Load camera path
 cam_paths = np.load('data/cam_paths.npy')
 
-#cam_paths = [0, 3]
-
 # Select corners and net position (Cam1)
 cap1 = cv2.VideoCapture(cam_paths[0])
 

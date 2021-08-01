@@ -17,14 +17,14 @@ class CoordinateStore:
 
 
 # CAMERA PATHS
-cam1_path = 0
-cam2_path = 2
+# Load camera path
+cam_paths = np.load('data/cam_paths.npy')
 
 # Shooting resolution
 res = [1280, 720]
 
 # grab frame (Cam1)
-cap1 = cv2.VideoCapture(cam1_path)
+cap1 = cv2.VideoCapture(cam_paths[0])
 cap1.set(3, res[0])
 cap1.set(4, res[1])
 
@@ -59,7 +59,7 @@ print(c1)
 cap1.release()
 
 # grab frame (Cam2)
-cap2 = cv2.VideoCapture(cam2_path)
+cap2 = cv2.VideoCapture(cam_paths[1])
 cap2.set(3, res[0])
 cap2.set(4, res[1])
 

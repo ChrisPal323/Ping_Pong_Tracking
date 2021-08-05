@@ -10,24 +10,30 @@ Specify:
     The best cookies. (chocolate)
 '''
 
-# Shooting resolution
-res = [1280, 720]
 
-# Load camera path
-cam_paths = np.load('data/cam_paths.npy')
+def main():
+    # Shooting resolution
+    res = [1280, 720]
 
-# Select corners and net position (Cam1)
-cap1 = cv2.VideoCapture(cam_paths[0])
+    # Load camera path
+    cam_paths = np.load('data/cam_paths.npy')
 
-# Select corners and net position (Cam2)
-cap2 = cv2.VideoCapture(cam_paths[1])
+    # Select corners and net position (Cam1)
+    cap1 = cv2.VideoCapture(cam_paths[0])
 
-# Load table corner data
-c1 = np.load('data/c1.npy')
-c2 = np.load('data/c2.npy')
+    # Select corners and net position (Cam2)
+    cap2 = cv2.VideoCapture(cam_paths[1])
 
-# Instantiate ze analyzer3000!!
-analyzer3000 = analyzer.Analyzer(cap1, cap2, res, c1, c2)
+    # Load table corner data
+    c1 = np.load('data/c1.npy')
+    c2 = np.load('data/c2.npy')
 
-# Run Live Detection and Animation!
-analyzer3000.animate_3d_live(1)
+    # Instantiate ze analyzer3000!!
+    analyzer3000 = analyzer.Analyzer(cap1, cap2, res, c1, c2)
+
+    # Run Live Detection and Animation!
+    analyzer3000.animate_3d_live(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -10,9 +10,6 @@ Functions for ball detection in each frame of a video
 # Test Mode
 test = True
 
-# Test viewing Res
-viewRes = (427, 240)
-
 # create subtracter
 fgbg = cv2.createBackgroundSubtractorMOG2(history=15, varThreshold=50, detectShadows=False)
 kernel = np.ones((2, 2), np.uint8)
@@ -59,7 +56,6 @@ def find_ball(frame, camNum):
     if test:
         im_with_keypoints = cv2.drawKeypoints(gray, keypoints, np.array([]),
                                               (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        im_with_keypoints = cv2.resize(im_with_keypoints, viewRes, interpolation=cv2.INTER_AREA)
 
     col = 0
     row = 0
@@ -70,6 +66,7 @@ def find_ball(frame, camNum):
         for i in range(len(keypoints)):
             x = int(keypoints[i].pt[0])
             y = int(keypoints[i].pt[1])
+
             val = np.sum(gray[max([y - 3, 0]):min([y + 3, height - 1]), max([x - 3, 0]):min([x + 3, width - 1])])
 
             if val > maxval:
@@ -80,7 +77,6 @@ def find_ball(frame, camNum):
     pos = np.array([col, row, 1])  # Return the 1 for  calculating 3D pos
     if test:
         framecopy = np.copy(frame)
-        framecopy = cv2.resize(framecopy, viewRes, interpolation=cv2.INTER_AREA)
         cv2.circle(framecopy, (col, row), 10, color=(0, 255, 0), thickness=4)
         imageStack = cv2.hconcat([framecopy, im_with_keypoints])
         cv2.imshow(f"Final Detections / Keypoints - {camNum}", imageStack)

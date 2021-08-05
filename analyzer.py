@@ -121,37 +121,6 @@ class Analyzer:
         X = pflat(np.reshape(v[0:4], [4, 1]))
         return np.reshape(X[0:3], [3, ])
 
-    # Plots path taken by ball in 3D in one point
-    def plot_3d_point(self, pointnbr):
-        fig = plt.figure()
-        ax = Axes3D(fig)
-        for stroke in self.points[pointnbr - 1]:
-            strokecopy = []
-            for i in range(stroke.shape[0]):
-                if stroke[i, 0] != 0 and stroke[i, 1] != 0:
-                    strokecopy.append([stroke[i, 0], stroke[i, 1], stroke[i, 2]])
-            sc = np.array(strokecopy)
-            ax.scatter([sc[i, 0] for i in range(sc.shape[0])], [sc[i, 1] for i in range(sc.shape[0])],
-                       [sc[i, 2] for i in range(sc.shape[0])])
-        x = [0, 0, 2.74, 2.74, 0, 1.37, 1.37, 1.37, 1.37, 1.37, 1.37]
-        y = [0, 1.525, 1.525, 0, 0, 0, -0.1525, -0.1525, 1.525 + 0.1525, 1.525 + 0.1525, -0.1525]
-        z = [0, 0, 0, 0, 0, 0, 0, 0.1525, 0.1525, 0, 0]
-        pos1 = -np.matmul(np.linalg.inv(self.A1[0:3, 0:3]), self.A1[:, 3])
-        pos2 = -np.matmul(np.linalg.inv(self.A2[0:3, 0:3]), self.A2[:, 3])
-        dir1 = self.A1[2, :]
-        dir2 = self.A2[2, :]
-        ax.scatter(pos1[0], pos1[1], pos1[2], c='k')
-        ax.scatter(pos2[0], pos2[1], pos2[2], c='k')
-        ax.quiver(pos1[0], pos1[1], pos1[2], dir1[0], dir1[1], dir1[2], length=1, normalize=True)
-        ax.quiver(pos2[0], pos2[1], pos2[2], dir2[0], dir2[1], dir2[2], length=1, normalize=True)
-        ax.plot(x, y, z, 'r')
-        # maxpos = max([np.max(pos1),np.max(pos2)])
-        ax.set_xlim(-1, 4)
-        ax.set_ylim(-2, 3)
-        ax.set_zlim(-1, 3)
-        plt.show()
-
-
     # Live generation
     def animate_3d_live(self, interval):
 

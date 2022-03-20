@@ -1,16 +1,21 @@
 import math
-import matplotlib.pyplot as plt
+import sys
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from collections import deque
 from scipy.linalg import qr, svd
 import cv2
-import random
-import matplotlib.animation as animation
+import pyqtgraph.opengl as gl
+from pyqtgraph.Qt import QtGui
 import ball_tracking as bt
+import renderings
 
-xtable = 2.74
-ytable = 1.525
+# Numbers that work well (in inches) with the graph and keep proper proportions
+xtable = 108
+ytable = 60
+
+xnet = 66
+ynet = 6  # Kinda like a z coord after 90 degree rotation
 
 
 class Analyzer:
@@ -75,7 +80,7 @@ class Analyzer:
         self.height = resolution[0]
         self.width = resolution[1]
 
-        # Points in cornersX should correspond: p1-p3, p2-p4, p3-p1, p4-p2
+        # Points in cornersX should correspond: p1-p3, p2-p4, p3-p1, p4-p2, p5-p6, p6-p5
         self.pc1 = np.copy(corners1)
         self.pc2 = np.zeros([6, 3])
         self.pc2[0, :] = corners2[2, :]
@@ -87,14 +92,15 @@ class Analyzer:
         self.pc1 = np.transpose(self.pc1)
         self.pc2 = np.transpose(self.pc2)
 
-        # Calculate camera matrices P1 and P2 from 6 known points
+        # Calculate camera matrices P1 and P2 from 6 known points graphically (index 3, "1", is for calculation)
+        netOffset = (ytable - xnet) / 2  # Offset from net off of table
         p1 = [0, ytable, 0, 1]
         p2 = [xtable, ytable, 0, 1]
         p3 = [xtable, 0, 0, 1]
         p4 = [0, 0, 0, 1]
-        p5 = [xtable / 2, -0.1525, 0.15, 1]
-        p6 = [xtable / 2, ytable + 0.1525, 0.15, 1]
-        self.c3d = np.transpose(np.array([p1, p2, p3, p4, p5, p6]))
+        p5 = [xtable / 2, -netOffset, ynet, 1]
+        p6 = [xtable / 2, ytable + netOffset, ynet, 1]
+        self.c3d = np.transpose(np.array([p1, p2, p3, p4, p5, p6]))  # This re-orientation will make sense later
         # Calculate P1 and P2
         self.P1 = calc_P(self.c3d, self.pc1)
         self.P2 = calc_P(self.c3d, self.pc2)
@@ -121,56 +127,89 @@ class Analyzer:
         X = pflat(np.reshape(v[0:4], [4, 1]))
         return np.reshape(X[0:3], [3, ])
 
-    # Live generation
-    def animate_3d_live(self, interval):
+    # MAIN LIVE FUNCTION!
+    def animate_3d_live(self):
 
-        # Config the plot
-        fig = plt.figure()
-        ax = Axes3D(fig)
+        # Resize cam
+        width = 720
+        height = 480
+        dim = (width, height)
 
-        # Set Scales
-        ax.set_xlim(-1, 4)
-        ax.set_ylim(-2, 3)
-        ax.set_zlim(-1, 3)
+        # ---- Set Up Window ----
+        app = QtGui.QApplication(sys.argv)  # Truthfully, don't know why we need this
+        w = gl.GLViewWidget()
+        w.opts['distance'] = 150
+        w.setWindowTitle('Ping-Pong Tracking')
+        w.setGeometry(0, 110, 1280, 720)
+        w.show()
 
-        def plot_table(ax):
-            # Ping Pong Table Coords
-            x = [0, 0, 2.74, 2.74, 0, 1.37, 1.37, 1.37, 1.37, 1.37, 1.37]
-            y = [0, 1.525, 1.525, 0, 0, 0, -0.1525, -0.1525, 1.525 + 0.1525, 1.525 + 0.1525, -0.1525]
-            z = [0, 0, 0, 0, 0, 0, 0, 0.1525, 0.1525, 0, 0]
+        # ---- Plot Table and Net ----
+        table = gl.GLGridItem()  # Create table
+        table.translate(xtable / 2, ytable / 2, 0)  # Move to correct coord
+        table.setSize(xtable, ytable)  # Size table
+        table.setSpacing(6, 6)  # Size grid spaces
+        w.addItem(table)  # Add table to view
 
-            # Plot Table
-            ax.plot(x, y, z, 'b', linewidth=2)
+        net = gl.GLGridItem()  # Create net
+        net.rotate(90, 1, 0, 0)  # Rotate plain
+        net.rotate(90, 0, 0, 1)  # Rotate plain
+        net.translate(xtable / 2, ytable / 2, ynet / 2)  # Move to correct pos
+        net.setSize(xnet, ynet)  # Size table
+        w.addItem(net)  # Add table to view
 
-        def plot_cameras(ax):
-            # Set up stuff for drawing camera
-            pos1 = -np.matmul(np.linalg.inv(self.A1[0:3, 0:3]), self.A1[:, 3])
-            pos2 = -np.matmul(np.linalg.inv(self.A2[0:3, 0:3]), self.A2[:, 3])
-            dir1 = self.A1[2, :]
-            dir2 = self.A2[2, :]
+        # ---- Plotting Cameras ----
+        pos1 = -np.matmul(np.linalg.inv(self.A1[0:3, 0:3]), self.A1[:, 3])
+        pos2 = -np.matmul(np.linalg.inv(self.A2[0:3, 0:3]), self.A2[:, 3])
+        dir1 = self.A1[2, :]
+        dir2 = self.A2[2, :]
 
-            # Draw the cameras
-            ax.scatter(pos1[0], pos1[1], pos1[2], c='k')
-            print(pos1[0], pos1[1], pos1[2])
-            ax.scatter(pos2[0], pos2[1], pos2[2], c='k')
-            ax.quiver(pos1[0], pos1[1], pos1[2], dir1[0], dir1[1], dir1[2], length=1, normalize=True)
-            ax.quiver(pos2[0], pos2[1], pos2[2], dir2[0], dir2[1], dir2[2], length=1, normalize=True)
+        # Draw the cameras
+        cam1 = renderings.init_camera(w, 1, pos1[0], pos1[1], pos1[2], dir1[0], dir1[1], dir1[2])
+        cam2 = renderings.init_camera(w, 2, pos2[0], pos2[1], pos2[2], dir2[0], dir2[1], dir2[2])
 
-        def grab_frames():
+        # ---- Create Objects to be Moved / Plotted ----
+
+        # Create ball and line object
+        ball = renderings.init_ball(w)
+        path = renderings.init_path(w)
+
+        # Add origin for reasons unknown to you mortal
+        renderings.init_point(w, 0, 0, 0)
+
+        # Pts from frame
+        pts_len = 64
+        pts = deque(maxlen=pts_len)
+
+        # Modified and scales pts for 3D render
+        mod_len = 10
+        modified_pts = deque(maxlen=mod_len)
+
+        # array for moving the ball
+        oldTranslation = np.array([0, 0, 0])
+
+        # ---- Functions to be Used in Ze Master Looooop ----
+
+        # Grab Frames for both cameras
+        def grab_frames(dim):
+
             ret1, frame1 = self.cam1.read()
             ret2, frame2 = self.cam2.read()
+
+            frame1 = cv2.resize(frame1, dim, interpolation=cv2.INTER_AREA)
+            frame2 = cv2.resize(frame2, dim, interpolation=cv2.INTER_AREA)
 
             if ret1 and ret2 is True:
                 return frame1, frame2
 
+        # Finds Ball using other findball method
         def find_ball(frame1, frame2):
             ball_pos1 = bt.find_ball(frame1, 1)
             ball_pos2 = bt.find_ball(frame2, 2)
 
             return ball_pos1, ball_pos2
 
+        # Generates 3d points from 2 2D points, duh
         def generate_3d_point(pos1, pos2):
-            # Generates 3d points from 2 2D points, duh
             if is_zero(pos1) or is_zero(pos2):
                 return np.array([0, 0, 1])
             else:
@@ -180,8 +219,9 @@ class Analyzer:
                 else:
                     return np.array([0, 0, 0])
 
+        # TODO - Fix This method!
         def remove_point_outliers():
-            # Remove outliers in ball points, duhhhh
+            # Remove outliers in ball points, duh
             samecount = 0
             for i in range(np.size(self.p3d, 0) - 4):
                 neighs = []
@@ -198,11 +238,10 @@ class Analyzer:
                     else:
                         samecount = 0
 
-        # Ze master function!!!
-        def update_points(i):
-
+        # Ze master loop!!!
+        while True:
             # Grab Frames from cap
-            frame1, frame2 = grab_frames()
+            frame1, frame2 = grab_frames(dim)
 
             # Then, find ball in both frames (2D)
             ball_pos1, ball_pos2 = find_ball(frame1, frame2)
@@ -214,32 +253,43 @@ class Analyzer:
             self.p3d.append(ball_3d_pos)
 
             # Tweak data and remove outliers
-            #remove_point_outliers()
+            # remove_point_outliers()
 
-            # Update graphically
-            ax.clear()  # Because resetting the graph removes old balls
-            plot_table(ax)
-            plot_cameras(ax)
+            # ---- Update graphically ----
 
-            # Add all points
-            for i in range(len(self.p3d)):
-                curPoint = self.p3d[i - 1]
-                ax.scatter(curPoint[0], curPoint[1], curPoint[2])
+            # Create translation array
+            newTranslation = np.array([ball_3d_pos[0], ball_3d_pos[1], ball_3d_pos[2]])  # init at 0, 0, 0
 
-        # Starts cam / tracking / animation loop based on interval!
-        anim = animation.FuncAnimation(fig, update_points, interval=interval)
-        plt.show()
+            # find adjusted translation
+            modifiedTranslation = newTranslation - oldTranslation
+
+            # Move ball modified translation
+            ball.translate(*modifiedTranslation)
+
+            # set old translation
+            oldTranslation = newTranslation
+
+            # Change the line points (needs to be array)
+            if len(pts) is not 0:
+                path.setData(pos=np.array(pts))
+
+            # Reset array
+            modified_pts.clear()
+
+            # detect keys
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+            elif key != 255:
+                print('KEY PRESS:', [chr(key)])
 
 
 # ----- Special Functions -----
 
 # RQ-factorization
+# param a: Original matrix
+# return: r,q
 def rq(a):
-    '''
-    :param a:       Original matrix
-    :return: r,q    rq=a
-    '''
-
     [m, n] = a.shape
     e = np.eye(m)
     p = np.fliplr(e)
@@ -263,12 +313,13 @@ def pflat(x):
 
 
 # Calculates camera matrix from a set of 6 point correspondences
+# Compute camera matrix from pairs of
+# 2D-3D correspondences in homog. coordinates.
+
+# param p3d      3D known points
+# param p2d      Corresponding 2D points in cameras
+# return         Camera matrix
 def calc_P(p3d, p2d):
-    '''
-    :param p3d:     3D known points
-    :param p2d:     Corresponding 2D points in cameras
-    :return:        Camera matrix
-    '''
     npoints = p2d.shape[1]
     mean = np.mean(p2d, 1)
     std = np.std(p2d, axis=1)
@@ -276,6 +327,8 @@ def calc_P(p3d, p2d):
                   [0, 1 / std[1], -mean[1] / std[1]],
                   [0, 0, 1]])
     p2dnorm = np.matmul(N, p2d)
+
+    # create matrix for DLT solution
     M = np.zeros([3 * npoints, 12 + npoints])
     for i in range(npoints):
         M[3 * i, 0:4] = p3d[:, i]
@@ -288,7 +341,6 @@ def calc_P(p3d, p2d):
     testsign = np.matmul(P, p3d[:, 1])
     if testsign[2] < 0:
         P = -P
-        print('changed sign of P')
     P = np.matmul(np.linalg.inv(N), P)
     return P
 
@@ -313,30 +365,3 @@ def inside_range(point):
     '''
     return -1 < point[0] < 3.74 and -1 < point[1] < 2.525 and -1 < point[2] < 3
 
-
-# Interpolate positions of missing points, bicubic interpolation
-def interpolate_missing(a, b, c, d, t0, t1, t2, t3):
-    '''
-    Takes four points with corresponding weight for bicubic interpolation
-    :param a:
-    :param b:
-    :param c:
-    :param d:
-    :param t0:
-    :param t1:
-    :param t2:
-    :param t3:
-    :return:
-    '''
-    matinv = np.linalg.inv([[1, t0, t0 ** 2, t0 ** 3],
-                            [1, t1, t1 ** 2, t1 ** 3],
-                            [1, t2, t2 ** 2, t2 ** 3],
-                            [1, t3, t3 ** 2, t3 ** 3]])
-    coeff = np.zeros([3, 4])
-    for i in range(3):
-        values = np.array([a[i], b[i], c[i], d[i]])
-        coeff[i, :] = matinv @ values
-    missing = np.zeros([t3 - t0 + 1, 3])
-    for i in range(missing.shape[0]):
-        missing[i, :] = coeff @ np.array([1, t0 + i, (t0 + i) ** 2, (t0 + i) ** 3])
-    return missing

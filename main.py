@@ -7,7 +7,7 @@ Grab cams, show the video, track the balls, create an analyzer object for visual
 Cool stuff man!
 
 Specify:
-    The best cookies. (chocolate)
+    The best cookies. [chocolate]
 '''
 
 
@@ -32,7 +32,7 @@ def main():
     analyzer3000 = analyzer.Analyzer(cap1, cap2, res, c1, c2)
 
     # Run Live Detection and Animation!
-    analyzer3000.animate_3d_live(1)
+    analyzer3000.animate_3d_live()
 
 
 if __name__ == "__main__":

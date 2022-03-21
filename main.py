@@ -19,10 +19,10 @@ def main():
     cam_paths = np.load('data/cam_paths.npy')
 
     # Select corners and net position (Cam1)
-    cap1 = cv2.VideoCapture(cam_paths[0])
+    cap1 = cv2.VideoCapture(0)
 
     # Select corners and net position (Cam2)
-    cap2 = cv2.VideoCapture(cam_paths[1])
+    cap2 = cv2.VideoCapture(1)
 
     # Load table corner data
     c1 = np.load('data/c1.npy')

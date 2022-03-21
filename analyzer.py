@@ -260,11 +260,9 @@ class Analyzer:
             # Create translation array
             newTranslation = np.array([ball_3d_pos[0], ball_3d_pos[1], ball_3d_pos[2]])  # init at 0, 0, 0
 
-            # find adjusted translation
-            modifiedTranslation = newTranslation - oldTranslation
-
-            # Move ball modified translation
-            ball.translate(*modifiedTranslation)
+            # Move ball new absolute translation
+            ball.resetTransform()  # Used to allow absolute positioning
+            ball.translate(newTranslation)
 
             # set old translation
             oldTranslation = newTranslation
